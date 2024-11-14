@@ -4,4 +4,4 @@ app = FastAPI()
 
 @app.get("/")
 async def read_root():
-    return {"fake news detection"}
+    return {"message": "Hello, World!"}
