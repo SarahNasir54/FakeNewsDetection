@@ -7,7 +7,6 @@ function checkFakeNews() {
         return;
     }
 
-    // Make a POST request to the FastAPI backend
     fetch('http://127.0.0.1:8000/fake-news-check', {
         method: 'POST',
         headers: {
@@ -15,6 +14,7 @@ function checkFakeNews() {
         },
         body: JSON.stringify({ text: input }),
     })
+    
     .then(response => response.json())
     .then(data => {
         resultDiv.innerHTML = data.message;
