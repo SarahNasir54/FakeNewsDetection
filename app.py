@@ -33,7 +33,7 @@ class TextRequest(BaseModel):
 @app.post("/predict")
 async def predict(request: TextRequest):
     result = clf(request.text)
-    # Map model label to readable label
+    print("Debugging Output:", result)  # Inspect raw model output
     label = label_map.get(result[0]["label"], "Unknown")
     score = result[0]["score"]
     return {"label": label, "score": score}
