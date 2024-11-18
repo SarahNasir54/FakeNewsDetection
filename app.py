@@ -38,12 +38,14 @@ def detect_fake_image(image: Image.Image):
 
 # Define endpoint for fake news detection
 @app.post("/predict")
-async def predict(request: TextRequest):
-    result = clf(request.text)
-    print("Debugging Output:", result)  # Inspect raw model output
-    label = label_map.get(result[0]["label"], "Unknown")
-    score = result[0]["score"]
-    return {"label": label, "score": score}
+async def predict(text: str = Form(None), image: UploadFile = File(None)):
+    if text:
+        # Process text input
+        result = clf(text)
+        print("Text Debugging Output:", result)  # Inspect raw model output
+        label = label_map.get(result[0]["label"], "Unknown")
+        score = result[0]["score"]
+        return {"label": label, "score": score}
 
     elif image:
         # Process image input
