@@ -17,14 +17,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load the text model
+# Load the model
 MODEL = "jy46604790/Fake-News-Bert-Detect"
 clf = pipeline("text-classification", model=MODEL, tokenizer=MODEL)
 
 # Label mapping for text detection
 label_map = {
-    "LABEL_0": "Fake",
-    "LABEL_1": "Real"
+    0: "Fake",
+    1: "Real",
 }
 
 # Dummy function for image fake detection
@@ -38,14 +38,12 @@ def detect_fake_image(image: Image.Image):
 
 # Define endpoint for fake news detection
 @app.post("/predict")
-async def predict(text: str = Form(None), image: UploadFile = File(None)):
-    if text:
-        # Process text input
-        result = clf(text)
-        print("Text Debugging Output:", result)  # Inspect raw model output
-        label = label_map.get(result[0]["label"], "Unknown")
-        score = result[0]["score"]
-        return {"label": label, "score": score}
+async def predict(request: TextRequest):
+    result = clf(request.text)
+    print("Debugging Output:", result)  # Inspect raw model output
+    label = label_map.get(result[0]["label"], "Unknown")
+    score = result[0]["score"]
+    return {"label": label, "score": score}
 
     elif image:
         # Process image input
