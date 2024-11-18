@@ -16,13 +16,18 @@ app.add_middleware(
 )
 
 # Load the model
-MODEL = "jy46604790/Fake-News-Bert-Detect"
-clf = pipeline("text-classification", model=MODEL, tokenizer=MODEL)
+MODEL = "roberta-base"  # Use RoBERTa base model
+clf = pipeline(
+    "text-classification",
+    model=MODEL,
+    tokenizer=MODEL,
+    return_all_scores=True,  # Include this to see probabilities for all labels
+)
 
 # Label mapping
 label_map = {
-    "LABEL_0": "Fake",
-    "LABEL_1": "Real"
+    0: "Fake",
+    1: "Real",
 }
 
 # Define request body structure
@@ -32,10 +37,14 @@ class TextRequest(BaseModel):
 # Define endpoint for fake news detection
 @app.post("/predict")
 async def predict(request: TextRequest):
-    result = clf(request.text)
+    result = clf(request.text)[0]  # Only process the first result
     print("Debugging Output:", result)  # Inspect raw model output
-    label = label_map.get(result[0]["label"], "Unknown")
-    score = result[0]["score"]
+
+    # Select label with the highest score
+    best_prediction = max(result, key=lambda x: x["score"])
+    label = label_map.get(best_prediction["label"], "Unknown")
+    score = best_prediction["score"]
+
     return {"label": label, "score": score}
 
 # Run the app with uvicorn
