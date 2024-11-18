@@ -1,22 +1,31 @@
 function checkFakeNews() {
-    const input = document.getElementById("newsInput").value;
+    const textInput = document.getElementById("newsInput").value.trim();
+    const imageInput = document.getElementById("imageInput").files[0];
     const resultDiv = document.getElementById("result");
 
-    if (input.trim() === "") {
-        resultDiv.innerHTML = "Please enter some text or a URL.";
+    if (!textInput && !imageInput) {
+        resultDiv.innerHTML = "Please enter some text, a URL, or upload an image.";
         return;
     }
 
+    const formData = new FormData();
+
+    if (textInput) formData.append("text", textInput);
+    if (imageInput) formData.append("image", imageInput);
+
     fetch('http://127.0.0.1:8000/predict', { 
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ text: input }),
+        body: formData,
     })
     .then(response => response.json())
     .then(data => {
-        resultDiv.innerHTML = `Label: ${data.label}, Score: ${data.score.toFixed(2)}`;
+        if (data.error) {
+            resultDiv.innerHTML = `Error: ${data.error}`;
+        } else {
+            const label = data.label || "Unknown";
+            const score = data.score !== undefined ? `, Score: ${data.score.toFixed(2)}` : "";
+            resultDiv.innerHTML = `Label: ${label}${score}`;
+        }
     })
     .catch(error => {
         console.error("Error:", error);

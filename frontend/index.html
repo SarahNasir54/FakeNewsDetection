@@ -9,9 +9,10 @@
 <body>
     <div class="container">
         <h1>Fake News Detection</h1>
-        <p>Enter text or a URL to check if it's fake news:</p>
+        <p>Enter text, a URL, or upload an image to check if it's fake news:</p>
 
         <input type="text" id="newsInput" placeholder="Enter news text or URL" />
+        <input type="file" id="imageInput" accept="image/*" />
         <button onclick="checkFakeNews()">Check</button>
 
         <div id="result"></div>
