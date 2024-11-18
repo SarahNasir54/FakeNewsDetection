@@ -42,7 +42,7 @@ async def predict(request: TextRequest):
 
     # Select label with the highest score
     best_prediction = max(result, key=lambda x: x["score"])
-    label = label_map.get(best_prediction["label"], "Unknown")
+    label = label_map.get(best_prediction["label"], "Real")
     score = best_prediction["score"]
 
     return {"label": label, "score": score}
