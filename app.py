@@ -1,6 +1,8 @@
 from fastapi import FastAPI, UploadFile, File, Form  # Added Form
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from transformers import pipeline, BertTokenizer, BertForSequenceClassification
+from transformers import pipeline, BertTokenizer, BertForSequenceClassification, AutoTokenizer, AutoModelForSequenceClassification
 import torch
 from torchvision import models, transforms
 from PIL import Image
@@ -9,10 +11,20 @@ import io
 # Initialize FastAPI app
 app = FastAPI()
 
-# Load text-based model (BERT for fake news detection)
-text_model = BertForSequenceClassification.from_pretrained("bert-base-uncased")
-tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
-text_classifier = pipeline("text-classification", model=text_model, tokenizer=tokenizer)
+# Mount the frontend folder to serve index.html
+app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
+
+# Root endpoint to serve the index.html from frontend folder
+@app.get("/")
+async def read_root():
+    return FileResponse("frontend/index.html")
+
+# Load DistilBERT-based fake news detection model from Hugging Face
+tokenizer = AutoTokenizer.from_pretrained("therealcyberlord/fake-news-classification-distilbert")
+model = AutoModelForSequenceClassification.from_pretrained("therealcyberlord/fake-news-classification-distilbert")
+
+# Use the Hugging Face pipeline for text classification
+text_classifier = pipeline("text-classification", model=model, tokenizer=tokenizer)
 
 # Load image-based model (ResNet for image classification)
 image_model = models.resnet50(pretrained=True)
@@ -25,10 +37,6 @@ transform = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
-
-# Define request body structure
-class TextRequest(BaseModel):
-    text: str
 
 # Endpoint for multimodal fake news detection (text and image)
 @app.post("/predict")
