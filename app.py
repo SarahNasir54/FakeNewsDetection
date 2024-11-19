@@ -11,6 +11,7 @@ import io
 from datetime import datetime, timedelta
 import asyncio
 import logging
+import tensorflow as tf 
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -29,6 +30,9 @@ async def read_root():
 # Simple cache for user profiles (can be replaced with a database)
 PROFILE_CACHE = {}
 CACHE_EXPIRY = timedelta(days=1)  # Cache expiry time, e.g., 1 day
+
+# Load the pretrained model for profile detection
+profile_model = tf.keras.models.load_model('models/pretrained_nn_model.h5')
 
 # Function to scrape and cache the user profile
 async def scrape_user_profile(url: str):
@@ -60,6 +64,15 @@ async def scrape_user_profile(url: str):
         logging.error(f"Error scraping profile: {e}")
         return {"error": f"Failed to scrape user profile: {str(e)}"}
 
+def predict_profile(profile_data):
+    input_data = f"{profile_data['name']} {profile_data['email']} {profile_data['joined']}"
+    prediction = profile_model.predict([input_data])
+    if prediction < 0.5:
+        return "Fake", prediction[0]
+    else:
+        return "Real", prediction[0]
+
+
 # Use transformers to detect fake news from text
 model = AutoModelForSequenceClassification.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english")
 tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english")
@@ -82,13 +95,19 @@ async def predict(
     # Just a placeholder while scraping is done in the background
     user_profile = {"name": "Loading...", "email": "Loading...", "joined": "Loading..."}
 
+    user_profile = await scrape_user_profile(profile_url)
+
     # Predict fake news
     fake_news_result = fake_news_classifier(text)
     final_label = fake_news_result[0]['label']
     final_score = fake_news_result[0]['score']
 
+    profile_label, profile_score = predict_profile(user_profile)
+
     return {
         "user_profile": user_profile,
+        "profile_label": profile_label,
+        "profile_score": profile_score,
         "final_label": final_label,
         "final_score": final_score
     }
