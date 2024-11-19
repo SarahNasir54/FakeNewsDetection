@@ -9,9 +9,8 @@ function checkFakeNews() {
     }
 
     const formData = new FormData();
-
     if (textInput) formData.append("text", textInput);
-    if (imageInput) formData.append("image", imageInput);
+    if (imageInput) formData.append("file", imageInput);
 
     fetch('http://127.0.0.1:8000/predict', { 
         method: 'POST',
@@ -22,9 +21,9 @@ function checkFakeNews() {
         if (data.error) {
             resultDiv.innerHTML = `Error: ${data.error}`;
         } else {
-            const label = data.label || "Unknown";
-            const score = data.score !== undefined ? `, Score: ${data.score.toFixed(2)}` : "";
-            resultDiv.innerHTML = `Label: ${label}${score}`;
+            const finalLabel = data.final_label || "Unknown";
+            const finalScore = data.final_score !== undefined ? `Score: ${data.final_score.toFixed(2)}` : "";
+            resultDiv.innerHTML = `Prediction: ${finalLabel} (${finalScore})`;
         }
     })
     .catch(error => {
