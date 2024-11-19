@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User Profile and News Checker</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="style.css">
     <style>
         /* Global Reset */
         * {
@@ -142,7 +142,6 @@
             color: red;
             font-weight: bold;
         }
-
     </style>
 </head>
 <body>
@@ -171,50 +170,54 @@
 
             // Prepare FormData for API request
             const formData = new FormData();
-            formData.append('profile_id', profileUrl); // Add profile ID
-            if (postText) formData.append('text', postText); // Add post text
-            if (imageUpload) formData.append('file', imageUpload); // Add uploaded file
+            formData.append('profile_url', profileUrl); // Add profile URL
+            if (postText) {
+                formData.append('text', postText); // Add post text for fake news detection
+            }
+            if (imageUpload) {
+                formData.append('file', imageUpload); // Add file
+            }
 
-            // Hide the form section and show the result section
-            document.getElementById('form-section').style.display = 'none';
-            document.getElementById('result').style.display = 'block';
-
-            // Make the POST request to FastAPI
-            fetch('http://127.0.0.1:8000/predict', {
+            // Fetch API call
+            fetch('/predict', {
                 method: 'POST',
                 body: formData
             })
             .then(response => response.json())
             .then(data => {
-                if (data.error) {
-                    // Display error message
-                    document.getElementById('result').innerHTML = `<p class="error">Error: ${data.error}</p>`;
-                } else {
-                    // Format and display the results
-                    let resultText = `
-                        <h2>User Profile</h2>
-                        <p><strong>Name:</strong> ${data.user_profile.name}</p>
-                        <p><strong>Email:</strong> ${data.user_profile.email}</p>
-                        <p><strong>Joined:</strong> ${data.user_profile.joined}</p>
-                        <hr>
-                        <h2>Post Text</h2>
-                        <p>${postText || "No text provided."}</p>
-                        <hr>
-                        <h2>Image Information</h2>
-                        ${imageUpload ? `<p><strong>Uploaded Image:</strong></p>
-                        <img src="${URL.createObjectURL(imageUpload)}" alt="Uploaded Image">` : `<p>No image uploaded.</p>`}
-                        <hr>
-                        <h2>Prediction Results</h2>
-                        <p><strong>Final Label:</strong> ${data.final_label}</p>
-                        <p><strong>Score:</strong> ${data.final_score.toFixed(2)}</p>
-                    `;
-                    document.getElementById('result').innerHTML = resultText;
-                }
+                // Handle the API response
+                displayResult(data);
             })
             .catch(error => {
-                console.error("Error:", error);
-                document.getElementById('result').innerHTML = `<p class="error">An error occurred. Please try again.</p>`;
+                console.error('Error:', error);
+                document.getElementById('result').innerHTML = "<p class='error'>An error occurred, please try again later.</p>";
+                document.getElementById('result').style.display = 'block';
             });
+        }
+
+        function displayResult(data) {
+            const resultElement = document.getElementById('result');
+            resultElement.style.display = 'block';
+
+            if (data.user_profile) {
+                resultElement.innerHTML = `
+                    <h2>User Profile</h2>
+                    <p>Name: ${data.user_profile.name}</p>
+                    <p>Email: ${data.user_profile.email}</p>
+                    <p>Joined: ${data.user_profile.joined}</p>
+                    <hr>
+                `;
+            }
+
+            if (data.final_label && data.final_score) {
+                resultElement.innerHTML += `
+                    <h2>Fake News Prediction</h2>
+                    <p>Prediction: ${data.final_label}</p>
+                    <p>Confidence Score: ${data.final_score.toFixed(4)}</p>
+                `;
+            }
+
+            resultElement.scrollIntoView();
         }
     </script>
 </body>

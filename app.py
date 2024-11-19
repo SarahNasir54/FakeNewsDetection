@@ -1,4 +1,6 @@
-from fastapi import FastAPI, UploadFile, File, Form
+import requests
+from bs4 import BeautifulSoup
+from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -7,6 +9,7 @@ import torch
 from torchvision import models, transforms
 from PIL import Image
 import io
+from datetime import datetime, timedelta
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -19,80 +22,82 @@ app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
 async def read_root():
     return FileResponse("frontend/index.html")
 
-# Mock user profile data (Replace with real database if available)
-USER_PROFILES = {
-    "1": {"name": "Alice", "email": "alice@example.com", "joined": "2023-01-15"},
-    "2": {"name": "Bob", "email": "bob@example.com", "joined": "2022-11-20"},
-    "3": {"name": "Charlie", "email": "charlie@example.com", "joined": "2021-08-05"},
-}
+# Simple cache for user profiles (can be replaced with a database)
+PROFILE_CACHE = {}
+CACHE_EXPIRY = timedelta(days=1)  # Cache expiry time, e.g., 1 day
 
-# Load DistilBERT-based fake news detection model from Hugging Face
-tokenizer = AutoTokenizer.from_pretrained("therealcyberlord/fake-news-classification-distilbert")
-model = AutoModelForSequenceClassification.from_pretrained("therealcyberlord/fake-news-classification-distilbert")
+# Function to scrape and cache the user profile
+def scrape_user_profile(url: str):
+    current_time = datetime.now()
+    if url in PROFILE_CACHE:
+        cached_data = PROFILE_CACHE[url]
+        # Check if the cached data has expired
+        if current_time - cached_data['timestamp'] < CACHE_EXPIRY:
+            return cached_data['profile']
 
-# Use the Hugging Face pipeline for text classification
-text_classifier = pipeline("text-classification", model=model, tokenizer=tokenizer)
+    try:
+        # Fetch the page content
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, 'html.parser')
 
-# Load image-based model (ResNet for image classification)
-image_model = models.resnet50(pretrained=True)
-image_model.eval()  # Set model to evaluation mode
+        # Example of extracting basic user profile data
+        name = soup.find('h1', class_='profile-name').text.strip() if soup.find('h1', class_='profile-name') else 'Not Available'
+        email = soup.find('a', class_='profile-email').text.strip() if soup.find('a', class_='profile-email') else 'Not Available'
+        joined = soup.find('span', class_='profile-joined').text.strip() if soup.find('span', class_='profile-joined') else 'Not Available'
 
-# Image transforms to match ResNet input requirements
-transform = transforms.Compose([
-    transforms.Resize(256),
-    transforms.CenterCrop(224),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-])
+        # Cache the scraped data
+        PROFILE_CACHE[url] = {
+            'profile': {"name": name, "email": email, "joined": joined},
+            'timestamp': current_time
+        }
 
-# Endpoint for multimodal fake news detection (text, image, and user profile)
+        return {"name": name, "email": email, "joined": joined}
+    except Exception as e:
+        return {"error": f"Failed to scrape user profile: {str(e)}"}
+
+# Use transformers to detect fake news from text
+model = AutoModelForSequenceClassification.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english")
+tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english")
+fake_news_classifier = pipeline("text-classification", model=model, tokenizer=tokenizer)
+
+# Pretrained model for image classification
+transform = transforms.Compose([transforms.Resize((224, 224)), transforms.ToTensor()])
+
+# Predict endpoint for checking fake news and processing user profile
 @app.post("/predict")
 async def predict(
-    profile_id: str = Form(None),  # User profile ID
+    profile_url: str = Form(...),  # User profile URL
     text: str = Form(None),  # Accept text from form
-    file: UploadFile = File(None)  # Accept file upload
+    file: UploadFile = File(None),  # Accept file upload
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
-    # Fetch user profile information
-    user_profile = USER_PROFILES.get(profile_id)
-    if not user_profile:
-        return {"error": "User profile not found. Please provide a valid profile ID."}
+    # Schedule the profile scraping in the background
+    background_tasks.add_task(scrape_user_profile, profile_url)
 
-    # Text prediction (if provided)
-    text_label, text_score = None, None
-    if text:
-        text_result = text_classifier(text)
-        text_label = text_result[0]['label']
-        text_score = text_result[0]['score']
+    # Fetch the user profile (this will use the cached or freshly scraped data)
+    user_profile = scrape_user_profile(profile_url)
+    
+    if 'error' in user_profile:
+        return {"error": user_profile['error']}
+    
+    # Predict the fake news label
+    fake_news_result = fake_news_classifier(text)
+    final_label = fake_news_result[0]['label']
+    final_score = fake_news_result[0]['score']
 
-    # Image prediction (if provided)
-    image_label, image_score = None, None
+    # Process the uploaded image if present
     if file:
         image_data = await file.read()
-        image = Image.open(io.BytesIO(image_data)).convert("RGB")
+        image = Image.open(io.BytesIO(image_data))
         image_tensor = transform(image).unsqueeze(0)
+        model = models.resnet50(pretrained=True)
+        model.eval()
         with torch.no_grad():
-            image_output = image_model(image_tensor)
-            image_probs = torch.nn.functional.softmax(image_output[0], dim=0)
-            image_label = image_probs.argmax().item()
-            image_score = image_probs.max().item()
-
-    # Decision Logic
-    if text_label == "LABEL_0" and image_label == 1:  # Both indicate fake
-        final_label = "Fake"
-        final_score = min(text_score or 1, image_score or 1)
-    else:
-        final_label = "Real"
-        final_score = max(text_score or 0, image_score or 0)
+            predictions = model(image_tensor)
+        # You can extract specific image classification logic here
 
     return {
         "user_profile": user_profile,
         "final_label": final_label,
-        "final_score": final_score,
-        "text_prediction": {"label": text_label, "score": text_score},
-        "image_prediction": {"label": image_label, "score": image_score},
+        "final_score": final_score
     }
-
-# Run the app with uvicorn
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("app:app", host="127.0.0.1", port=8000, reload=True)
