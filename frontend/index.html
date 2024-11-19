@@ -85,16 +85,15 @@
 
     <script>
         function fetchProfileAndCheckNews() {
-            const profileUrl = document.getElementById('profileUrl').value;
-            const postText = document.getElementById('postText').value;
-            const imageUpload = document.getElementById('imageUpload').files[0];
+            const profileUrl = document.getElementById('profileUrl').value; // Profile ID
+            const postText = document.getElementById('postText').value; // Post text
+            const imageUpload = document.getElementById('imageUpload').files[0]; // Uploaded file
 
-            // Prepare FormData to send to the server
+            // Prepare FormData for API request
             const formData = new FormData();
-
-            // Append form fields to formData
-            if (postText) formData.append('text', postText);
-            if (imageUpload) formData.append('file', imageUpload);
+            formData.append('profile_id', profileUrl); // Add profile ID
+            if (postText) formData.append('text', postText); // Add post text
+            if (imageUpload) formData.append('file', imageUpload); // Add uploaded file
 
             // Make the POST request to FastAPI
             fetch('http://127.0.0.1:8000/predict', {
@@ -104,19 +103,34 @@
             .then(response => response.json())
             .then(data => {
                 if (data.error) {
-                    document.getElementById('result').innerHTML = `Error: ${data.error}`;
+                    // Display error message
+                    document.getElementById('result').innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
                 } else {
-                    let resultText = `<strong>Profile URL:</strong> ${profileUrl}<br><strong>Post Text:</strong> ${postText}`;
-                    if (imageUpload) {
-                        resultText += `<br><strong>Uploaded Image:</strong><br><img src="${URL.createObjectURL(imageUpload)}" width="200" alt="Uploaded Image">`;
-                    }
-                    resultText += `<br><strong>Final Prediction:</strong> ${data.final_label}<br><strong>Score:</strong> ${data.final_score.toFixed(2)}`;
+                    // Format and display the results
+                    let resultText = `
+                        <h2>User Profile</h2>
+                        <p><strong>Name:</strong> ${data.user_profile.name}</p>
+                        <p><strong>Email:</strong> ${data.user_profile.email}</p>
+                        <p><strong>Joined:</strong> ${data.user_profile.joined}</p>
+                        <hr>
+                        <h2>Post Text</h2>
+                        <p>${postText || "No text provided."}</p>
+                        <hr>
+                        <h2>Image Information</h2>
+                        ${imageUpload ? `<p><strong>Uploaded Image:</strong></p>
+                        <img src="${URL.createObjectURL(imageUpload)}" width="200" alt="Uploaded Image">` : `<p>No image uploaded.</p>`}
+                        <hr>
+                        <h2>Prediction Results</h2>
+                        <p><strong>Final Label:</strong> ${data.final_label}</p>
+                        <p><strong>Score:</strong> ${data.final_score.toFixed(2)}</p>
+                        <hr>
+                    `;
                     document.getElementById('result').innerHTML = resultText;
                 }
             })
             .catch(error => {
                 console.error("Error:", error);
-                document.getElementById('result').innerHTML = "An error occurred. Please try again.";
+                document.getElementById('result').innerHTML = `<p style="color: red;">An error occurred. Please try again.</p>`;
             });
         }
     </script>
