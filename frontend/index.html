@@ -6,81 +6,161 @@
     <title>User Profile and News Checker</title>
     <link rel="stylesheet" href="styles.css">
     <style>
+        /* Global Reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
+            background: #f7f7f7;
+            font-family: 'Roboto', sans-serif;
             margin: 0;
-            background-color: white;
-            font-family: Arial, sans-serif;
         }
+
         .container {
-            text-align: center;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
             padding: 20px;
-            border-radius: 8px;
-            background-color: #fff;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 500px;
+            width: 90%;
+            max-width: 480px;
+            text-align: center;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
+
         h1 {
-            font-size: 2rem;
-            margin-bottom: 20px;
-            color: black;
+            font-size: 1.6rem;
+            color: #333;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            font-weight: 700;
         }
+
         input, textarea, button {
             width: 100%;
-            padding: 10px;
-            margin: 10px 0;
+            padding: 8px;
+            margin: 8px 0;
             border: 1px solid #ccc;
-            border-radius: 4px;
+            border-radius: 6px;
+            font-size: 1rem;
         }
+
+        input:focus, textarea:focus {
+            border-color: #4CAF50;
+            outline: none;
+        }
+
         textarea {
-            height: 120px;
+            resize: vertical;
+            min-height: 80px;
         }
+
         button {
             background-color: #4CAF50;
             color: white;
-            font-size: 1rem;
+            font-size: 1.1rem;
             cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 10px;
         }
+
         button:hover {
             background-color: #45a049;
         }
+
+        .file-input {
+            background-color: #f9f9f9;
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .file-input input[type="file"] {
+            border: none;
+            background: transparent;
+            padding: 6px;
+        }
+
+        .file-input label {
+            display: inline-block;
+            padding: 8px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: #333;
+        }
+
+        .file-input:hover label {
+            background-color: #dcdcdc;
+        }
+
         .result {
             margin-top: 20px;
-            color: black;
+            text-align: left;
+            background: #e9f5e9;
+            padding: 15px;
+            border-radius: 8px;
+            color: #333;
+            font-size: 0.9rem;
+            max-height: 60vh;
+            overflow-y: auto;
         }
-        input[type="file"] {
-            background-color: #f9f9f9;
-            color: black;
-            padding: 10px;
+
+        .result h2 {
+            font-size: 1.4rem;
+            color: #4CAF50;
+            margin-bottom: 10px;
         }
-        input, textarea {
-            background-color: #f9f9f9;
-            color: black;
+
+        .result p {
+            line-height: 1.4;
+            font-size: 0.9rem;
         }
+
+        .result img {
+            max-width: 100%;
+            margin-top: 10px;
+            border-radius: 8px;
+        }
+
+        .result hr {
+            border: 1px solid #ccc;
+            margin: 10px 0;
+        }
+
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+
     </style>
 </head>
 <body>
     <div class="container">
         <h1>User Profile and News Checker</h1>
         
-        <!-- Input for Profile URL -->
-        <input type="text" id="profileUrl" placeholder="Enter User Profile ID (e.g., 1)">
-        
-        <!-- Textarea for Post Text -->
-        <textarea id="postText" placeholder="Enter the post text for fake news detection"></textarea>
-        
-        <!-- File Input for Image Upload -->
-        <input type="file" id="imageUpload" accept="image/*">
-        
-        <!-- Submit Button -->
-        <button onclick="fetchProfileAndCheckNews()">Submit</button>
-        
-        <!-- Result Output -->
-        <div class="result" id="result"></div>
+        <!-- Form Section -->
+        <div id="form-section">
+            <input type="text" id="profileUrl" placeholder="Enter User Profile ID (e.g., 1)">
+            <textarea id="postText" placeholder="Enter the post text for fake news detection"></textarea>
+            <div class="file-input">
+                <input type="file" id="imageUpload" accept="image/*">
+            </div>
+            <button onclick="fetchProfileAndCheckNews()">Submit</button>
+        </div>
+
+        <!-- Result Output Section -->
+        <div class="result" id="result" style="display: none;"></div>
     </div>
 
     <script>
@@ -95,6 +175,10 @@
             if (postText) formData.append('text', postText); // Add post text
             if (imageUpload) formData.append('file', imageUpload); // Add uploaded file
 
+            // Hide the form section and show the result section
+            document.getElementById('form-section').style.display = 'none';
+            document.getElementById('result').style.display = 'block';
+
             // Make the POST request to FastAPI
             fetch('http://127.0.0.1:8000/predict', {
                 method: 'POST',
@@ -104,7 +188,7 @@
             .then(data => {
                 if (data.error) {
                     // Display error message
-                    document.getElementById('result').innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
+                    document.getElementById('result').innerHTML = `<p class="error">Error: ${data.error}</p>`;
                 } else {
                     // Format and display the results
                     let resultText = `
@@ -118,19 +202,18 @@
                         <hr>
                         <h2>Image Information</h2>
                         ${imageUpload ? `<p><strong>Uploaded Image:</strong></p>
-                        <img src="${URL.createObjectURL(imageUpload)}" width="200" alt="Uploaded Image">` : `<p>No image uploaded.</p>`}
+                        <img src="${URL.createObjectURL(imageUpload)}" alt="Uploaded Image">` : `<p>No image uploaded.</p>`}
                         <hr>
                         <h2>Prediction Results</h2>
                         <p><strong>Final Label:</strong> ${data.final_label}</p>
                         <p><strong>Score:</strong> ${data.final_score.toFixed(2)}</p>
-                        <hr>
                     `;
                     document.getElementById('result').innerHTML = resultText;
                 }
             })
             .catch(error => {
                 console.error("Error:", error);
-                document.getElementById('result').innerHTML = `<p style="color: red;">An error occurred. Please try again.</p>`;
+                document.getElementById('result').innerHTML = `<p class="error">An error occurred. Please try again.</p>`;
             });
         }
     </script>
