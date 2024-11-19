@@ -1,18 +1,22 @@
 import requests
 from bs4 import BeautifulSoup
 from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks
-from fastapi.responses import FileResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
 from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
 import torch
 from torchvision import models, transforms
 from PIL import Image
 import io
 from datetime import datetime, timedelta
+import asyncio
+import logging
 
 # Initialize FastAPI app
 app = FastAPI()
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
 
 # Mount the frontend folder to serve index.html
 app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
@@ -27,7 +31,7 @@ PROFILE_CACHE = {}
 CACHE_EXPIRY = timedelta(days=1)  # Cache expiry time, e.g., 1 day
 
 # Function to scrape and cache the user profile
-def scrape_user_profile(url: str):
+async def scrape_user_profile(url: str):
     current_time = datetime.now()
     if url in PROFILE_CACHE:
         cached_data = PROFILE_CACHE[url]
@@ -53,6 +57,7 @@ def scrape_user_profile(url: str):
 
         return {"name": name, "email": email, "joined": joined}
     except Exception as e:
+        logging.error(f"Error scraping profile: {e}")
         return {"error": f"Failed to scrape user profile: {str(e)}"}
 
 # Use transformers to detect fake news from text
@@ -66,35 +71,21 @@ transform = transforms.Compose([transforms.Resize((224, 224)), transforms.ToTens
 # Predict endpoint for checking fake news and processing user profile
 @app.post("/predict")
 async def predict(
-    profile_url: str = Form(...),  # User profile URL
-    text: str = Form(None),  # Accept text from form
-    file: UploadFile = File(None),  # Accept file upload
+    profile_url: str = Form(...),
+    text: str = Form(None),
+    file: UploadFile = File(None),
     background_tasks: BackgroundTasks = BackgroundTasks()
 ):
-    # Schedule the profile scraping in the background
+    # Add scraping to background task
     background_tasks.add_task(scrape_user_profile, profile_url)
 
-    # Fetch the user profile (this will use the cached or freshly scraped data)
-    user_profile = scrape_user_profile(profile_url)
-    
-    if 'error' in user_profile:
-        return {"error": user_profile['error']}
-    
-    # Predict the fake news label
+    # Just a placeholder while scraping is done in the background
+    user_profile = {"name": "Loading...", "email": "Loading...", "joined": "Loading..."}
+
+    # Predict fake news
     fake_news_result = fake_news_classifier(text)
     final_label = fake_news_result[0]['label']
     final_score = fake_news_result[0]['score']
-
-    # Process the uploaded image if present
-    if file:
-        image_data = await file.read()
-        image = Image.open(io.BytesIO(image_data))
-        image_tensor = transform(image).unsqueeze(0)
-        model = models.resnet50(pretrained=True)
-        model.eval()
-        with torch.no_grad():
-            predictions = model(image_tensor)
-        # You can extract specific image classification logic here
 
     return {
         "user_profile": user_profile,

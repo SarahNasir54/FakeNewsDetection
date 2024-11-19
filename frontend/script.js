@@ -24,7 +24,7 @@ function fetchProfileAndCheckNews() {
                               Joined: ${profile.joined}<br><br>`;
             resultText += `<strong>Fake News Check:</strong><br>
                            Final Label: ${data.final_label}<br>
-                           Final Score: ${data.final_score.toFixed(2)}`;
+                           Final Score: ${data.final_score.toFixed(2)}<br><br>`;
             document.getElementById('result').innerHTML = resultText;
         }
     })
