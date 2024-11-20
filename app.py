@@ -46,6 +46,7 @@ async def scrape_user_profile(url: str):
     try:
         # Fetch the page content
         response = requests.get(url)
+        response.raise_for_status()  # Raise exception for HTTP errors
         soup = BeautifulSoup(response.text, 'html.parser')
 
         # Example of extracting basic user profile data
@@ -60,9 +61,12 @@ async def scrape_user_profile(url: str):
         }
 
         return {"name": name, "email": email, "joined": joined}
+    except requests.exceptions.RequestException as e:
+        logging.error(f"HTTP error while scraping profile: {e}")
+        return {"error": f"Failed to fetch user profile: {str(e)}"}
     except Exception as e:
         logging.error(f"Error scraping profile: {e}")
-        return {"error": f"Failed to scrape user profile: {str(e)}"}
+        return {"error": f"An unexpected error occurred: {str(e)}"}
 
 def predict_profile(profile_data):
     input_data = f"{profile_data['name']} {profile_data['email']} {profile_data['joined']}"
@@ -96,6 +100,15 @@ async def predict(
     user_profile = {"name": "Loading...", "email": "Loading...", "joined": "Loading..."}
 
     user_profile = await scrape_user_profile(profile_url)
+
+     # Check if scraping returned an error
+    if "error" in user_profile:
+        return {"error": user_profile["error"]}
+
+    # Ensure user_profile has the required keys
+    required_keys = {"name", "email", "joined"}
+    if not all(key in user_profile for key in required_keys):
+        return {"error": "Incomplete profile data retrieved."}
 
     # Predict fake news
     fake_news_result = fake_news_classifier(text)
